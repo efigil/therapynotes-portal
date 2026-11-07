@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="תמלול AI" />
+  <title>מערכת תמלול וסיכום פגישות AI - חיבור לענן</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body {
+      min-height: 100vh;
+      background: linear-gradient(135deg, #042f2e 0%, #0f172a 55%, #134e4a 100%);
+      color: #f8fafc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      text-align: center;
+    }
+    .card {
+      width: 100%;
+      max-width: 400px;
+      background: rgba(255, 255, 255, 0.97);
+      color: #0f172a;
+      border-radius: 28px;
+      padding: 32px 24px;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+    .icon-box {
+      width: 68px;
+      height: 68px;
+      background: #0d9488;
+      color: white;
+      border-radius: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 16px;
+      font-size: 32px;
+      box-shadow: 0 10px 20px rgba(13, 148, 136, 0.3);
+    }
+    h1 { font-size: 20px; font-weight: 800; margin-bottom: 8px; color: #0f172a; }
+    p { font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 20px; }
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 4px solid #ccfbf1;
+      border-top-color: #0d9488;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 16px auto;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn {
+      display: inline-block;
+      width: 100%;
+      padding: 15px 20px;
+      background: #0d9488;
+      color: white;
+      font-weight: 800;
+      font-size: 16px;
+      text-decoration: none;
+      border-radius: 16px;
+      box-shadow: 0 8px 16px rgba(13, 148, 136, 0.25);
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+    .btn:hover { background: #0f766e; }
+    .status { font-size: 12px; color: #64748b; margin-top: 14px; }
+    .error { color: #e11d48; font-weight: 600; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon-box">🔒</div>
+    <h1>מערכת תמלול וסיכום פגישות AI</h1>
+    <p id="desc">מתחבר אוטומטית לשרת הענן המאובטח שלך...</p>
+    <div id="loader" class="spinner"></div>
+    <a id="directBtn" class="btn" href="#" style="display:none;">כניסה למערכת התמלול ←</a>
+    <div id="statusText" class="status">מאתר כתובת שרת פעילה...</div>
+  </div>
+
+  <script>
+    const GIST_ID = 'd0ed8f7b4f80c1a5fb66cf3d08da9e16';
+    const NTFY_TOPIC = 'therapynotes_efigil_7749';
+
+    async function getFromGist() {
+      const res = await fetch(`https://api.github.com/gists/${GIST_ID}?t=${Date.now()}`, {
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error('Gist fetch failed');
+      const data = await res.json();
+      const content = data.files && data.files['tunnel_state.json'] && data.files['tunnel_state.json'].content;
+      if (content) {
+        const parsed = JSON.parse(content);
+        if (parsed.url && parsed.url.startsWith('https://')) {
+          return parsed.url.trim();
+        }
+      }
+      throw new Error('No valid URL in Gist');
+    }
+
+    async function getFromNtfy() {
+      const res = await fetch(`https://ntfy.sh/${NTFY_TOPIC}/json?poll=1&t=${Date.now()}`, {
+        cache: 'no-store'
+      });
+      if (!res.ok) throw new Error('Ntfy fetch failed');
+      const text = await res.text();
+      const lines = text.trim().split('\n').filter(Boolean);
+      for (let i = lines.length - 1; i >= 0; i--) {
+        try {
+          const item = JSON.parse(lines[i]);
+          if (item.message && item.message.startsWith('https://') && item.message.includes('trycloudflare.com')) {
+            return item.message.trim();
+          }
+        } catch (e) {}
+      }
+      throw new Error('No valid URL in Ntfy');
+    }
+
+    async function connect() {
+      const statusEl = document.getElementById('statusText');
+      const btnEl = document.getElementById('directBtn');
+      const loaderEl = document.getElementById('loader');
+      const descEl = document.getElementById('desc');
+
+      let targetUrl = null;
+      try {
+        targetUrl = await getFromGist();
+      } catch (e) {
+        try {
+          targetUrl = await getFromNtfy();
+        } catch (e2) {}
+      }
+
+      if (targetUrl) {
+        btnEl.href = targetUrl;
+        btnEl.style.display = 'inline-block';
+        statusEl.textContent = 'מעביר אותך למערכת המאובטחת...';
+        setTimeout(() => {
+          window.location.replace(targetUrl);
+        }, 150);
+      } else {
+        loaderEl.style.display = 'none';
+        descEl.textContent = 'לא ניתן היה לאתר חיבור פעיל מהמחשב כרגע. ודא שהמחשב דלוק ומחובר לאינטרנט.';
+        statusEl.className = 'status error';
+        statusEl.textContent = 'נסה לרענן את הדף בעוד מספר שניות.';
+      }
+    }
+
+    connect();
+  </script>
+</body>
+</html>
