@@ -6,7 +6,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="תמלול AI" />
-  <title>מערכת תמלול וסיכום פגישות AI - חיבור לענן</title>
+  <title>שער כניסה מוצפן (AES-256) - מערכת תמלול AI</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
     body {
@@ -22,7 +22,7 @@
     .card {
       width: 100%;
       max-width: 400px;
-      background: rgba(255, 255, 255, 0.97);
+      background: rgba(255, 255, 255, 0.98);
       color: #0f172a;
       border-radius: 28px;
       padding: 32px 24px;
@@ -37,22 +37,37 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      margin: 0 auto 16px;
+      margin: 0 auto 14px;
       font-size: 32px;
       box-shadow: 0 10px 20px rgba(13, 148, 136, 0.3);
     }
-    h1 { font-size: 20px; font-weight: 800; margin-bottom: 8px; color: #0f172a; }
-    p { font-size: 14px; color: #475569; line-height: 1.5; margin-bottom: 20px; }
-    .spinner {
-      width: 42px;
-      height: 42px;
-      border: 4px solid #ccfbf1;
-      border-top-color: #0d9488;
-      border-radius: 50%;
-      animation: spin 0.9s linear infinite;
-      margin: 16px auto;
+    .badge {
+      display: inline-block;
+      background: #ecfdf5;
+      color: #047857;
+      border: 1px solid #a7f3d0;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 999px;
+      margin-bottom: 12px;
     }
-    @keyframes spin { to { transform: rotate(360deg); } }
+    h1 { font-size: 20px; font-weight: 800; margin-bottom: 8px; color: #0f172a; }
+    p { font-size: 13.5px; color: #475569; line-height: 1.5; margin-bottom: 18px; }
+    .input-box {
+      width: 100%;
+      padding: 14px 16px;
+      border: 2px solid #cbd5e1;
+      border-radius: 14px;
+      font-size: 18px;
+      font-weight: 700;
+      text-align: center;
+      letter-spacing: 4px;
+      margin-bottom: 12px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-box:focus { border-color: #0d9488; }
     .btn {
       display: inline-block;
       width: 100%;
@@ -61,96 +76,150 @@
       color: white;
       font-weight: 800;
       font-size: 16px;
+      border: none;
+      cursor: pointer;
       text-decoration: none;
       border-radius: 16px;
       box-shadow: 0 8px 16px rgba(13, 148, 136, 0.25);
       transition: background 0.2s;
-      margin-top: 8px;
     }
     .btn:hover { background: #0f766e; }
     .status { font-size: 12px; color: #64748b; margin-top: 14px; }
-    .error { color: #e11d48; font-weight: 600; }
+    .error { color: #e11d48; font-weight: 700; }
   </style>
 </head>
 <body>
   <div class="card">
-    <div class="icon-box">🔒</div>
-    <h1>מערכת תמלול וסיכום פגישות AI</h1>
-    <p id="desc">מתחבר אוטומטית לשרת הענן המאובטח שלך...</p>
-    <div id="loader" class="spinner"></div>
-    <a id="directBtn" class="btn" href="#" style="display:none;">כניסה למערכת התמלול ←</a>
-    <div id="statusText" class="status">מאתר כתובת שרת פעילה...</div>
+    <div class="icon-box">🔐</div>
+    <div class="badge">הצפנת קצה-לקצה AES-256-GCM</div>
+    <h1>שער כניסה מאובטח ומוצפן</h1>
+    <p id="desc">הזן קוד PIN או סיסמה אישית כדי לפענח את כתובת השרת ולהיכנס למערכת התמלול:</p>
+
+    <form id="unlockForm">
+      <input
+        id="secretInput"
+        type="password"
+        inputmode="numeric"
+        placeholder="קוד PIN או סיסמה"
+        class="input-box"
+        autocomplete="current-password"
+        required
+      />
+      <button type="submit" id="submitBtn" class="btn">פענח והיכנס למערכת ←</button>
+    </form>
+
+    <div id="statusText" class="status">אפס מידע חשוף ב-GitHub – כתובת השרת מוצפנת ב-AES-256</div>
   </div>
 
   <script>
-    const GIST_ID = 'd0ed8f7b4f80c1a5fb66cf3d08da9e16';
-    const NTFY_TOPIC = 'therapynotes_efigil_7749';
+    const GIST_ID = '0d5fc2ae7784e2ea83db1ff61bf21de5';
+    const STORAGE_KEY = 'therapynotes_portal_key_v1';
 
-    async function getFromGist() {
-      const res = await fetch(`https://api.github.com/gists/${GIST_ID}?t=${Date.now()}`, {
-        cache: 'no-store'
-      });
-      if (!res.ok) throw new Error('Gist fetch failed');
-      const data = await res.json();
-      const content = data.files && data.files['tunnel_state.json'] && data.files['tunnel_state.json'].content;
-      if (content) {
-        const parsed = JSON.parse(content);
-        if (parsed.url && parsed.url.startsWith('https://')) {
-          return parsed.url.trim();
-        }
-      }
-      throw new Error('No valid URL in Gist');
+    function base64ToBytes(b64) {
+      const bin = atob(b64);
+      const arr = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+      return arr;
     }
 
-    async function getFromNtfy() {
-      const res = await fetch(`https://ntfy.sh/${NTFY_TOPIC}/json?poll=1&t=${Date.now()}`, {
-        cache: 'no-store'
-      });
-      if (!res.ok) throw new Error('Ntfy fetch failed');
-      const text = await res.text();
-      const lines = text.trim().split('\n').filter(Boolean);
-      for (let i = lines.length - 1; i >= 0; i--) {
-        try {
-          const item = JSON.parse(lines[i]);
-          if (item.message && item.message.startsWith('https://') && item.message.includes('trycloudflare.com')) {
-            return item.message.trim();
-          }
-        } catch (e) {}
-      }
-      throw new Error('No valid URL in Ntfy');
+    async function decryptVault(vault, secret) {
+      const enc = new TextEncoder();
+      const salt = base64ToBytes(vault.salt);
+      const iv = base64ToBytes(vault.iv);
+      const data = base64ToBytes(vault.data);
+
+      const baseKey = await crypto.subtle.importKey(
+        'raw',
+        enc.encode(secret.trim()),
+        { name: 'PBKDF2' },
+        false,
+        ['deriveKey']
+      );
+
+      const aesKey = await crypto.subtle.deriveKey(
+        {
+          name: 'PBKDF2',
+          salt: salt,
+          iterations: 100000,
+          hash: 'SHA-256'
+        },
+        baseKey,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['decrypt']
+      );
+
+      const decryptedBuf = await crypto.subtle.decrypt(
+        { name: 'AES-GCM', iv: iv },
+        aesKey,
+        data
+      );
+
+      return new TextDecoder().decode(decryptedBuf);
     }
 
-    async function connect() {
+    async function tryUnlockWithSecret(secret, isAuto = false) {
       const statusEl = document.getElementById('statusText');
-      const btnEl = document.getElementById('directBtn');
-      const loaderEl = document.getElementById('loader');
-      const descEl = document.getElementById('desc');
-
-      let targetUrl = null;
+      const submitBtn = document.getElementById('submitBtn');
       try {
-        targetUrl = await getFromGist();
-      } catch (e) {
-        try {
-          targetUrl = await getFromNtfy();
-        } catch (e2) {}
-      }
+        statusEl.className = 'status';
+        statusEl.textContent = 'מפענח כתובת שרת ב-AES-256...';
+        submitBtn.disabled = true;
 
-      if (targetUrl) {
-        btnEl.href = targetUrl;
-        btnEl.style.display = 'inline-block';
-        statusEl.textContent = 'מעביר אותך למערכת המאובטחת...';
-        setTimeout(() => {
-          window.location.replace(targetUrl);
-        }, 150);
-      } else {
-        loaderEl.style.display = 'none';
-        descEl.textContent = 'לא ניתן היה לאתר חיבור פעיל מהמחשב כרגע. ודא שהמחשב דלוק ומחובר לאינטרנט.';
+        const res = await fetch(`https://api.github.com/gists/${GIST_ID}?t=${Date.now()}`, {
+          cache: 'no-store'
+        });
+        if (!res.ok) throw new Error('שגיאת תקשורת');
+        const gist = await res.json();
+        const raw = gist.files && gist.files['tunnel_state.json'] && gist.files['tunnel_state.json'].content;
+        const parsed = JSON.parse(raw);
+
+        if (!parsed.vaults || !Array.isArray(parsed.vaults)) {
+          throw new Error('לא נמצא מידע מוצפן');
+        }
+
+        let decryptedUrl = null;
+        for (const v of parsed.vaults) {
+          try {
+            const candidate = await decryptVault(v, secret);
+            if (candidate && candidate.startsWith('https://')) {
+              decryptedUrl = candidate.trim();
+              break;
+            }
+          } catch (innerErr) {}
+        }
+
+        if (!decryptedUrl) {
+          if (isAuto) {
+            localStorage.removeItem(STORAGE_KEY);
+            statusEl.textContent = 'הזן קוד PIN או סיסמה אישית לכניסה';
+            submitBtn.disabled = false;
+            return;
+          }
+          throw new Error('קוד PIN או סיסמה שגויים – הפענוח נכשל');
+        }
+
+        localStorage.setItem(STORAGE_KEY, secret.trim());
+        statusEl.textContent = 'הפענוח הצליח! מעביר למערכת התמלול...';
+        window.location.replace(decryptedUrl);
+      } catch (err) {
+        submitBtn.disabled = false;
         statusEl.className = 'status error';
-        statusEl.textContent = 'נסה לרענן את הדף בעוד מספר שניות.';
+        statusEl.textContent = err.message || 'שגיאה בפענוח הכניסה';
       }
     }
 
-    connect();
+    document.getElementById('unlockForm').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = document.getElementById('secretInput').value;
+      if (val) tryUnlockWithSecret(val, false);
+    });
+
+    const savedSecret = localStorage.getItem(STORAGE_KEY);
+    if (savedSecret) {
+      document.getElementById('secretInput').value = savedSecret;
+      tryUnlockWithSecret(savedSecret, true);
+    }
   </script>
 </body>
 </html>
