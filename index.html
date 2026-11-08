@@ -2,6 +2,9 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -84,6 +87,11 @@
       transition: background 0.2s;
     }
     .btn:hover { background: #0f766e; }
+    .btn-go {
+      background: #059669;
+      margin-top: 12px;
+      display: none;
+    }
     .status { font-size: 12px; color: #64748b; margin-top: 14px; }
     .error { color: #e11d48; font-weight: 700; }
   </style>
@@ -93,7 +101,7 @@
     <div class="icon-box">🔐</div>
     <div class="badge">הצפנת קצה-לקצה AES-256-GCM</div>
     <h1>שער כניסה מאובטח ומוצפן</h1>
-    <p id="desc">הזן קוד PIN או סיסמה אישית כדי לפענח את כתובת השרת ולהיכנס למערכת התמלול:</p>
+    <p id="desc">הזן קוד PIN (1234) או סיסמה אישית כדי לפענח את כתובת השרת ולהיכנס למערכת התמלול:</p>
 
     <form id="unlockForm">
       <input
@@ -108,12 +116,14 @@
       <button type="submit" id="submitBtn" class="btn">פענח והיכנס למערכת ←</button>
     </form>
 
+    <a id="directGoBtn" href="#" class="btn btn-go">לחץ כאן אם המעבר האוטומטי לא נפתח ←</a>
+
     <div id="statusText" class="status">אפס מידע חשוף ב-GitHub – כתובת השרת מוצפנת ב-AES-256</div>
   </div>
 
   <script>
     const GIST_ID = '0d5fc2ae7784e2ea83db1ff61bf21de5';
-    const STORAGE_KEY = 'therapynotes_portal_key_v1';
+    const STORAGE_KEY = 'therapynotes_portal_key_v2';
 
     function base64ToBytes(b64) {
       const bin = atob(b64);
@@ -161,6 +171,7 @@
     async function tryUnlockWithSecret(secret, isAuto = false) {
       const statusEl = document.getElementById('statusText');
       const submitBtn = document.getElementById('submitBtn');
+      const directGoBtn = document.getElementById('directGoBtn');
       try {
         statusEl.className = 'status';
         statusEl.textContent = 'מפענח כתובת שרת ב-AES-256...';
@@ -169,7 +180,7 @@
         const res = await fetch(`https://api.github.com/gists/${GIST_ID}?t=${Date.now()}`, {
           cache: 'no-store'
         });
-        if (!res.ok) throw new Error('שגיאת תקשורת');
+        if (!res.ok) throw new Error('שגיאת תקשורת בטעינת הנתונים המוצפנים');
         const gist = await res.json();
         const raw = gist.files && gist.files['tunnel_state.json'] && gist.files['tunnel_state.json'].content;
         const parsed = JSON.parse(raw);
@@ -200,8 +211,10 @@
         }
 
         localStorage.setItem(STORAGE_KEY, secret.trim());
+        directGoBtn.href = decryptedUrl;
+        directGoBtn.style.display = 'inline-block';
         statusEl.textContent = 'הפענוח הצליח! מעביר למערכת התמלול...';
-        window.location.replace(decryptedUrl);
+        window.location.href = decryptedUrl;
       } catch (err) {
         submitBtn.disabled = false;
         statusEl.className = 'status error';
